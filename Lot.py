@@ -1,5 +1,7 @@
 from datetime import datetime
 import pyrebase
+from User import User
+from Guest import Guest
 
 def setupFirebase():
     config = {
@@ -44,6 +46,14 @@ class LotControls:
     db = firebase.database()
     currTotal = 0
 
+    def getDBPath(self, user):
+        if type(user) is User:
+            DB_PATH = "users"
+        elif type(user) is Guest:
+            DB_PATH = "guestUsers"
+
+        return DB_PATH
+
     def carEnter(self, user, lot, dbRef= db):
         """
         Simulates a car entering the parking lot and performs actions on the User and Lot objects.
@@ -54,14 +64,16 @@ class LotControls:
         :return: returns nothing.
         """
 
+        DB_PATH = self.getDBPath(user)
+
         cUser = user
         cUser.updateLot(lot)
 
         cUser.lot.startStamp = datetime.now()
-        dbRef.child("users").child(user.uid).update({"startStamp": str(cUser.lot.startStamp)})
+        dbRef.child(DB_PATH).child(user.uid).update({"startStamp": str(cUser.lot.startStamp)})
         self.incLot(cUser.lot.lotID, self.currTotal)
 
-    def carExit(self, user, dbRef= db):
+    def carExit(self, user, lot, dbRef= db):
         """
         Simulates a car exiting the parking lot and performs actions on the User and Lot objects.
 
@@ -71,11 +83,15 @@ class LotControls:
         :return: returns nothing.
         """
 
+        DB_PATH = self.getDBPath(user)
+
         cUser = user
+        cUser.updateLot(lot)
+        cUser.lot.startStamp = datetime.strptime(dbRef.child(DB_PATH).child(cUser.uid).child("startStamp").get().val(), "%Y-%m-%d %H:%M:%S.%f")
         cUser.lot.stopStamp = datetime.now()
-        dbRef.child("users").child(cUser.uid).update({"stopStamp": str(cUser.lot.stopStamp)})
+        dbRef.child(DB_PATH).child(cUser.uid).update({"stopStamp": str(cUser.lot.stopStamp)})
         self.setTotal(cUser)
-        dbRef.child("users").child(cUser.uid).update({"totalDue": cUser.lot.totalDue})
+        dbRef.child(DB_PATH).child(cUser.uid).update({"totalDue": cUser.lot.totalDue})
         self.decLot(cUser.lot.lotID, self.currTotal)
 
     def updateTime(self, user, dbRef=db):
@@ -87,11 +103,13 @@ class LotControls:
         :return: returns nothing.
         """
 
+        DB_PATH = self.getDBPath(user)
+
         cUser = user
         cUser.lot.stopStamp = datetime.now()
-        dbRef.child("users").child(cUser.uid).update({"stopStamp": str(cUser.lot.stopStamp)})
+        dbRef.child(DB_PATH).child(cUser.uid).update({"stopStamp": str(cUser.lot.stopStamp)})
         self.setTotal(cUser);
-        dbRef.child("users").child(cUser.uid).update({"totalDue": cUser.lot.totalDue})
+        dbRef.child(DB_PATH).child(cUser.uid).update({"totalDue": cUser.lot.totalDue})
 
     def setTotal(self, user, dbRef=db):
         """
