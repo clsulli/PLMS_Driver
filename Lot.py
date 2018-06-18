@@ -2,6 +2,8 @@ from datetime import datetime
 import pyrebase
 from User import User
 from Guest import Guest
+import serial
+import time
 
 def setupFirebase():
     config = {
@@ -93,6 +95,15 @@ class LotControls:
         self.setTotal(cUser)
         dbRef.child(DB_PATH).child(cUser.uid).update({"totalDue": cUser.lot.totalDue})
         self.decLot(cUser.lot.lotID, self.currTotal)
+        if "guest" in cUser.uid:
+            self.guestTotal(cUser.uid)
+
+    def guestTotal(self, guestId, dbRef = db):
+        totalDue = dbRef.child("guestUsers").child(guestId).child("totalDue").get().val()
+        ser = serial.Serial('/dev/ttyACM1', 9600)
+        time.sleep(1)
+        ser.write(guestId + "," + totalDue)
+        return totalDue
 
     def updateTime(self, user, dbRef=db):
         """
@@ -129,10 +140,10 @@ class LotControls:
         secsElapsed = totalMinSec[0]
 
         cUser.lot.totalDue = (user.lot.lotPrice) * (1/60)*secsElapsed
-        print(cUser.lot.totalDue)
+        #print(cUser.lot.totalDue)
 
         cUser.lot.totalDue = '${:,.2f}'.format(cUser.lot.totalDue)
-        print(cUser.lot.totalDue)
+        #print(cUser.lot.totalDue)
 
         return cUser.lot.totalDue
 
